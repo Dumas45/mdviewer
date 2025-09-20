@@ -186,3 +186,14 @@ body {
     margin: 15px 0;
     color: #6c757d;
 }
+
+/* Emoji styling - now using Unicode characters, so minimal styling needed */
+.markdown-content {
+    /* Set consistent emoji font for better rendering */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+}
+
+/* Optional: If we want to style specific emoji characters */
+.markdown-content p, .markdown-content li {
+    line-height: 1.6;
+}

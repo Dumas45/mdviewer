@@ -108,7 +108,22 @@ async def get_file_content(file_path: str, base_folder: Optional[str] = None):
             markdown_content = f.read()
 
         # Convert markdown to HTML
-        md = markdown.Markdown(extensions=['extra', 'codehilite'])
+        # Try to use emoji extension if available, fallback to basic extensions
+        extensions = ['extra', 'codehilite']
+        extension_configs = {}
+
+        try:
+            import pymdownx.emoji
+            extensions.append('pymdownx.emoji')
+            extension_configs['pymdownx.emoji'] = {
+                'emoji_index': pymdownx.emoji.gemoji,
+                'emoji_generator': pymdownx.emoji.to_alt
+            }
+        except ImportError:
+            # pymdown-extensions not available, skip emoji support
+            pass
+
+        md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
         html_content = md.convert(markdown_content)
 
         return HTMLResponse(content=f'<div class="markdown-content">{html_content}</div>')
