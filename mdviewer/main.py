@@ -123,7 +123,11 @@ async def get_file_content(file_path: str, base_folder: Optional[str] = None):
             # pymdown-extensions not available, skip emoji support
             pass
 
-        md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
+        md = markdown.Markdown(
+            extensions=extensions, 
+            extension_configs=extension_configs,
+            tab_length=2  # Allow nested lists with 2+ spaces instead of requiring 4 spaces
+        )
         html_content = md.convert(markdown_content)
 
         return HTMLResponse(content=f'<div class="markdown-content">{html_content}</div>')
