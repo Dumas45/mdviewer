@@ -14,11 +14,7 @@ templates = Jinja2Templates(directory="templates")
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Configuration - change this to your markdown files directory
-MARKDOWN_DIR = Path("./markdown_files")
-
-# Ensure the markdown directory exists
-MARKDOWN_DIR.mkdir(exist_ok=True)
+# No default markdown directory - users will select their own folders
 
 
 def get_file_tree(directory: Path, relative_to: Optional[Path] = None) -> list:
@@ -63,23 +59,41 @@ async def root(request: Request):
 
 
 @app.get("/api/files")
-async def get_files():
+async def get_files(folder_path: Optional[str] = None):
     """API endpoint to get the file tree structure"""
     try:
-        file_tree = get_file_tree(MARKDOWN_DIR)
+        if folder_path is None:
+            return JSONResponse(content=[])
+        
+        target_dir = Path(folder_path).resolve()
+        
+        # Security check: ensure the path exists and is a directory
+        if not target_dir.exists():
+            raise HTTPException(status_code=404, detail="Directory not found")
+        
+        if not target_dir.is_dir():
+            raise HTTPException(status_code=400, detail="Path is not a directory")
+        
+        file_tree = get_file_tree(target_dir)
         return JSONResponse(content=file_tree)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading directory: {str(e)}")
 
 
 @app.get("/api/file/{file_path:path}")
-async def get_file_content(file_path: str):
+async def get_file_content(file_path: str, base_folder: Optional[str] = None):
     """API endpoint to get rendered markdown content"""
     try:
-        full_path = MARKDOWN_DIR / file_path
+        if base_folder is None:
+            raise HTTPException(status_code=400, detail="Base folder parameter is required")
+        
+        base_dir = Path(base_folder).resolve()
+        full_path = base_dir / file_path
 
-        # Security check: ensure the file is within the markdown directory
-        if not str(full_path.resolve()).startswith(str(MARKDOWN_DIR.resolve())):
+        # Security check: ensure the file is within the base directory
+        if not str(full_path.resolve()).startswith(str(base_dir.resolve())):
             raise HTTPException(status_code=403, detail="Access denied")
 
         if not full_path.exists() or not full_path.is_file():
@@ -106,23 +120,4 @@ async def get_file_content(file_path: str):
 
 if __name__ == "__main__":
     import uvicorn
-
-    # Create some sample markdown files for testing
-    sample_dir = MARKDOWN_DIR / "sample"
-    sample_dir.mkdir(exist_ok=True)
-
-    # Create sample files if they don't exist
-    sample_files = {
-        "README.md": "# Welcome\n\nThis is a sample markdown file.\n\n## Features\n\n- File tree navigation\n- Live markdown rendering\n- Responsive design",
-        "sample/hello.md": "# Hello World\n\nThis is in a subdirectory.\n\n```python\nprint('Hello, World!')\n```",
-        "sample/example.md": "# Example Document\n\n> This is a blockquote\n\n1. First item\n2. Second item\n3. Third item"
-    }
-
-    for file_path, content in sample_files.items():
-        full_path = MARKDOWN_DIR / file_path
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        if not full_path.exists():
-            with open(full_path, 'w', encoding='utf-8') as f:
-                f.write(content)
-
     uvicorn.run(app, host="0.0.0.0", port=8700)

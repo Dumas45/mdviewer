@@ -14,8 +14,13 @@
     <div class="sidebar">
         <h3>{% block sidebar_title %}{{ sidebar_title or "Markdown Files" }}{% endblock %}</h3>
         {% block sidebar_content %}
+        <div class="folder-selector">
+            <label for="folder-input">Select Folder:</label>
+            <input type="text" id="folder-input" placeholder="Enter folder path..." />
+            <button id="load-folder-btn">Load Folder</button>
+        </div>
         <div id="tree-container">
-            <div class="loading">Loading files...</div>
+            <div class="no-folder">No folder selected. Please enter a folder path above.</div>
         </div>
         {% endblock %}
     </div>

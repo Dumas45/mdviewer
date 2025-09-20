@@ -18,6 +18,56 @@ body {
     padding: 20px;
 }
 
+.folder-selector {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.folder-selector label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+}
+
+.folder-selector input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.folder-selector input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.folder-selector button {
+    width: 100%;
+    padding: 8px 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.folder-selector button:hover {
+    background: #0056b3;
+}
+
+.folder-selector button:active {
+    background: #004085;
+}
+
 .content {
     flex: 1;
     padding: 20px;
@@ -82,6 +132,13 @@ body {
 .loading {
     color: #6c757d;
     font-style: italic;
+}
+
+.no-folder, .no-files {
+    color: #6c757d;
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
 }
 
 .error {
