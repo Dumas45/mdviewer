@@ -1,0 +1,131 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    height: 100vh;
+    display: flex;
+}
+
+.sidebar {
+    width: 300px;
+    background: #f8f9fa;
+    border-right: 1px solid #e9ecef;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background: white;
+}
+
+.tree {
+    list-style: none;
+}
+
+.tree-item {
+    margin: 2px 0;
+}
+
+.tree-file {
+    padding: 5px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.tree-file:hover {
+    background: #e9ecef;
+}
+
+.tree-file.selected {
+    background: #007bff;
+    color: white;
+}
+
+.tree-directory {
+    font-weight: 600;
+    padding: 5px 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.tree-directory::before {
+    content: "📁 ";
+    margin-right: 5px;
+}
+
+.tree-directory.expanded::before {
+    content: "📂 ";
+}
+
+.tree-file::before {
+    content: "📄 ";
+    margin-right: 5px;
+}
+
+.tree-children {
+    margin-left: 20px;
+    display: none;
+}
+
+.tree-children.expanded {
+    display: block;
+}
+
+.loading {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.error {
+    color: #dc3545;
+    background: #f8d7da;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+/* Markdown styling */
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.markdown-content p {
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+.markdown-content code {
+    background: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.markdown-content pre {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin: 15px 0;
+}
+
+.markdown-content ul, .markdown-content ol {
+    margin: 15px 0;
+    padding-left: 30px;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #007bff;
+    padding-left: 15px;
+    margin: 15px 0;
+    color: #6c757d;
+}

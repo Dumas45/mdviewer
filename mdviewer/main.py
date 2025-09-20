@@ -4,14 +4,15 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
-import os
 import markdown
-import json
 
 app = FastAPI(title="Markdown Viewer")
 
 # Configure Jinja2 templates
 templates = Jinja2Templates(directory="templates")
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Configuration - change this to your markdown files directory
 MARKDOWN_DIR = Path("./markdown_files")
