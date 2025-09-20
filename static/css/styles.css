@@ -11,7 +11,7 @@ body {
 }
 
 .sidebar {
-    width: 300px;
+    width: 400px;
     background: #f8f9fa;
     border-right: 1px solid #e9ecef;
     overflow-y: auto;
@@ -70,9 +70,9 @@ body {
 
 .content {
     flex: 1;
-    padding: 20px;
+    padding: 20px 20px 20px 2cm;
     overflow-y: auto;
-    background: white;
+    background: #f0f0f0;
 }
 
 .tree {
@@ -150,6 +150,10 @@ body {
 }
 
 /* Markdown styling */
+.markdown-content {
+    max-width: 20cm;
+}
+
 .markdown-content h1, .markdown-content h2, .markdown-content h3 {
     margin-top: 20px;
     margin-bottom: 10px;
