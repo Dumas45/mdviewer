@@ -5,11 +5,11 @@ async function loadFileTree(folderPath = null) {
     try {
         const url = folderPath ? `/api/files?folder_path=${encodeURIComponent(folderPath)}` : '/api/files';
         const response = await fetch(url);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const files = await response.json();
         currentFolder = folderPath;
         renderTree(files);
@@ -26,7 +26,7 @@ function renderTree(items, container = null) {
     }
 
     if (items.length === 0) {
-        container.innerHTML = currentFolder 
+        container.innerHTML = currentFolder
             ? '<div class="no-files">No markdown files found in this folder.</div>'
             : '<div class="no-folder">No folder selected. Please enter a folder path above.</div>';
         return;
@@ -99,6 +99,8 @@ async function selectFile(filePath, element) {
         if (response.ok) {
             const html = await response.text();
             document.getElementById('markdown-content').innerHTML = html;
+            // Fix image and asset paths relative to the markdown file's directory
+            fixAssetPaths(filePath);
         } else {
             const errorText = await response.text();
             document.getElementById('markdown-content').innerHTML =
@@ -110,31 +112,125 @@ async function selectFile(filePath, element) {
     }
 }
 
+function fixAssetPaths(markdownFilePath) {
+    if (!currentFolder || !markdownFilePath) return;
+
+    const contentDiv = document.getElementById('markdown-content');
+
+    // Calculate the base directory of the markdown file
+    const markdownDir = markdownFilePath.includes('/')
+        ? markdownFilePath.substring(0, markdownFilePath.lastIndexOf('/'))
+        : '';
+
+    // Fix image sources
+    const images = contentDiv.querySelectorAll('img');
+    images.forEach(img => {
+        const src = img.getAttribute('src');
+        if (src && !src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('/static/')) {
+            // Resolve the image path relative to the markdown file's directory
+            let resolvedPath;
+
+            if (src.startsWith('./')) {
+                // Relative to current directory: ./image.png
+                resolvedPath = markdownDir ? `${markdownDir}/${src.substring(2)}` : src.substring(2);
+            } else if (src.startsWith('../')) {
+                // Relative to parent directory: ../images/image.png
+                if (markdownDir) {
+                    const pathParts = markdownDir.split('/');
+                    let srcParts = src.split('/');
+
+                    // Handle multiple ../ in the path
+                    while (srcParts[0] === '..' && pathParts.length > 0) {
+                        pathParts.pop();
+                        srcParts.shift();
+                    }
+
+                    resolvedPath = pathParts.length > 0
+                        ? `${pathParts.join('/')}/${srcParts.join('/')}`
+                        : srcParts.join('/');
+                } else {
+                    // If we're at root level, just remove the ../
+                    resolvedPath = src.replace(/^\.\.\/+/, '');
+                }
+            } else if (src.startsWith('/')) {
+                // Absolute path from root: /images/image.png
+                resolvedPath = src.substring(1);
+            } else {
+                // Relative path without ./ prefix: images/image.png
+                resolvedPath = markdownDir ? `${markdownDir}/${src}` : src;
+            }
+
+            img.src = `/assets/${resolvedPath}?base_folder=${encodeURIComponent(currentFolder)}`;
+        }
+    });
+
+    // Fix other asset links (like CSS, PDFs, etc.)
+    const links = contentDiv.querySelectorAll('a[href]');
+    links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('#') && !href.startsWith('/static/')) {
+            // Check if it's pointing to a file that might be an asset
+            const extension = href.split('.').pop()?.toLowerCase();
+            const assetExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'pdf', 'css', 'js', 'doc', 'docx', 'txt'];
+            if (extension && assetExtensions.includes(extension)) {
+                // Apply same path resolution logic as images
+                let resolvedPath;
+
+                if (href.startsWith('./')) {
+                    resolvedPath = markdownDir ? `${markdownDir}/${href.substring(2)}` : href.substring(2);
+                } else if (href.startsWith('../')) {
+                    if (markdownDir) {
+                        const pathParts = markdownDir.split('/');
+                        let hrefParts = href.split('/');
+
+                        while (hrefParts[0] === '..' && pathParts.length > 0) {
+                            pathParts.pop();
+                            hrefParts.shift();
+                        }
+
+                        resolvedPath = pathParts.length > 0
+                            ? `${pathParts.join('/')}/${hrefParts.join('/')}`
+                            : hrefParts.join('/');
+                    } else {
+                        resolvedPath = href.replace(/^\.\.\/+/, '');
+                    }
+                } else if (href.startsWith('/')) {
+                    resolvedPath = href.substring(1);
+                } else {
+                    resolvedPath = markdownDir ? `${markdownDir}/${href}` : href;
+                }
+
+                link.href = `/assets/${resolvedPath}?base_folder=${encodeURIComponent(currentFolder)}`;
+            }
+        }
+    });
+}
+
 function handleFolderLoad() {
     const folderInput = document.getElementById('folder-input');
     const folderPath = folderInput.value.trim();
-    
+
     if (!folderPath) {
         document.getElementById('tree-container').innerHTML =
             '<div class="error">Please enter a folder path</div>';
         return;
     }
-    
+
     // Clear current selection and content
     selectedFile = null;
     document.getElementById('markdown-content').innerHTML =
         '<p style="color: #6c757d;">Loading folder...</p>';
-    
+
     loadFileTree(folderPath);
 }
 
 // Load file tree on page load (will be empty by default)
 document.addEventListener('DOMContentLoaded', function() {
     loadFileTree(); // Load empty tree initially
-    
+
     // Set up event handlers
     document.getElementById('load-folder-btn').addEventListener('click', handleFolderLoad);
-    
+
     document.getElementById('folder-input').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             handleFolderLoad();

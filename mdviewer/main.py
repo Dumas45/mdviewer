@@ -1,10 +1,11 @@
 from typing import Optional
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import markdown
+import mimetypes
 
 app = FastAPI(title="Markdown Viewer")
 
@@ -64,16 +65,16 @@ async def get_files(folder_path: Optional[str] = None):
     try:
         if folder_path is None:
             return JSONResponse(content=[])
-        
+
         target_dir = Path(folder_path).resolve()
-        
+
         # Security check: ensure the path exists and is a directory
         if not target_dir.exists():
             raise HTTPException(status_code=404, detail="Directory not found")
-        
+
         if not target_dir.is_dir():
             raise HTTPException(status_code=400, detail="Path is not a directory")
-        
+
         file_tree = get_file_tree(target_dir)
         return JSONResponse(content=file_tree)
     except HTTPException:
@@ -88,7 +89,7 @@ async def get_file_content(file_path: str, base_folder: Optional[str] = None):
     try:
         if base_folder is None:
             raise HTTPException(status_code=400, detail="Base folder parameter is required")
-        
+
         base_dir = Path(base_folder).resolve()
         full_path = base_dir / file_path
 
@@ -116,6 +117,36 @@ async def get_file_content(file_path: str, base_folder: Optional[str] = None):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+
+@app.get("/assets/{file_path:path}")
+async def serve_asset(file_path: str, base_folder: Optional[str] = None):
+    """Serve static assets (images, etc.) from the selected markdown folder"""
+    try:
+        if base_folder is None:
+            raise HTTPException(status_code=400, detail="Base folder parameter is required")
+
+        base_dir = Path(base_folder).resolve()
+        full_path = base_dir / file_path
+
+        # Security check: ensure the file is within the base directory
+        if not str(full_path.resolve()).startswith(str(base_dir.resolve())):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        if not full_path.exists() or not full_path.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get MIME type
+        mime_type, _ = mimetypes.guess_type(str(full_path))
+        if mime_type is None:
+            mime_type = "application/octet-stream"
+
+        return FileResponse(full_path, media_type=mime_type)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error serving asset: {str(e)}")
 
 
 if __name__ == "__main__":
