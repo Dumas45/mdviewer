@@ -33,7 +33,7 @@ def get_file_tree(directory: Path, relative_to: Optional[Path] = None) -> list:
                     "path": str(relative_path),
                     "type": "file"
                 })
-            elif item.is_dir():
+            elif item.is_dir() and not item.name.startswith('.'):
                 subdirectory_items = get_file_tree(item, relative_to)
                 if subdirectory_items:  # Only include directories with markdown files
                     items.append({
