@@ -49,7 +49,7 @@ def get_file_tree(directory: Path, relative_to: Optional[Path] = None) -> list:
 
 
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
+def root(request: Request):
     """Serve the main HTML page using Jinja2 template"""
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -60,7 +60,7 @@ async def root(request: Request):
 
 
 @app.get("/api/files")
-async def get_files(folder_path: Optional[str] = None):
+def get_files(folder_path: Optional[str] = None):
     """API endpoint to get the file tree structure"""
     try:
         if folder_path is None:
@@ -84,7 +84,7 @@ async def get_files(folder_path: Optional[str] = None):
 
 
 @app.get("/api/file/{file_path:path}")
-async def get_file_content(file_path: str, base_folder: Optional[str] = None):
+def get_file_content(file_path: str, base_folder: Optional[str] = None):
     """API endpoint to get rendered markdown content"""
     try:
         if base_folder is None:
@@ -139,7 +139,7 @@ async def get_file_content(file_path: str, base_folder: Optional[str] = None):
 
 
 @app.get("/assets/{file_path:path}")
-async def serve_asset(file_path: str, base_folder: Optional[str] = None):
+def serve_asset(file_path: str, base_folder: Optional[str] = None):
     """Serve static assets (images, etc.) from the selected markdown folder"""
     try:
         if base_folder is None:
