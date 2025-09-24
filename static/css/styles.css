@@ -185,10 +185,10 @@ body {
 }
 
 .markdown-content blockquote {
-    border-left: 4px solid #007bff;
+    border-left: 4px solid #6c757d;
     padding-left: 15px;
     margin: 15px 0;
-    color: #6c757d;
+    color: #444444;
 }
 
 .markdown-content p, .markdown-content li {
