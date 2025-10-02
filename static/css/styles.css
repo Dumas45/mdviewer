@@ -226,3 +226,8 @@ body {
 .markdown-content tr:last-child td {
     border-bottom: none;
 }
+
+/* Emoji styling - make emojis larger */
+.markdown-content .emoji {
+    font-size: x-large;
+}

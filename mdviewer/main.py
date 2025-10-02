@@ -1,4 +1,5 @@
 from typing import Optional
+from xml.etree.ElementTree import Element
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,8 +15,6 @@ templates = Jinja2Templates(directory="templates")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# No default markdown directory - users will select their own folders
 
 
 def get_file_tree(directory: Path, relative_to: Optional[Path] = None) -> list:
@@ -114,17 +113,27 @@ def get_file_content(file_path: str, base_folder: Optional[str] = None):
 
         try:
             import pymdownx.emoji
+
+            # Custom emoji generator that wraps Unicode emoji in span with class
+            def to_alt_with_span(*args, **kwargs):
+                # The alt text (Unicode emoji) is typically the 5th argument (index 4)
+                alt = args[4] if len(args) > 4 else kwargs.get('alt', '')
+                span = Element('span')
+                span.set('class', 'emoji')
+                span.text = alt
+                return span
+
             extensions.append('pymdownx.emoji')
             extension_configs['pymdownx.emoji'] = {
                 'emoji_index': pymdownx.emoji.gemoji,
-                'emoji_generator': pymdownx.emoji.to_alt
+                'emoji_generator': to_alt_with_span
             }
         except ImportError:
             # pymdown-extensions not available, skip emoji support
             pass
 
         md = markdown.Markdown(
-            extensions=extensions, 
+            extensions=extensions,
             extension_configs=extension_configs,
             tab_length=2  # Allow nested lists with 2+ spaces instead of requiring 4 spaces
         )
