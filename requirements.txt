@@ -3,3 +3,4 @@ uvicorn
 jinja2
 markdown
 pymdown-extensions
+pygments
