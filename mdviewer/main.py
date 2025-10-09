@@ -123,7 +123,7 @@ def get_file_content(file_path: str, base_folder: Optional[str] = None):
                 span.text = alt
                 return span
 
-            extensions.append('pymdownx.emoji')
+            extensions.extend(['pymdownx.emoji', 'pymdownx.superfences'])
             extension_configs['pymdownx.emoji'] = {
                 'emoji_index': pymdownx.emoji.gemoji,
                 'emoji_generator': to_alt_with_span
@@ -134,8 +134,7 @@ def get_file_content(file_path: str, base_folder: Optional[str] = None):
 
         md = markdown.Markdown(
             extensions=extensions,
-            extension_configs=extension_configs,
-            tab_length=2  # Allow nested lists with 2+ spaces instead of requiring 4 spaces
+            extension_configs=extension_configs
         )
         html_content = md.convert(markdown_content)
 
