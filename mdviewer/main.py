@@ -31,13 +31,13 @@ def set_base_folder(request: SetBaseFolderRequest):
     global base_folder_path
     try:
         target_dir = Path(request.folder_path).resolve()
-        
+
         if not target_dir.exists():
             raise HTTPException(status_code=404, detail="Directory not found")
-        
+
         if not target_dir.is_dir():
             raise HTTPException(status_code=400, detail="Path is not a directory")
-        
+
         base_folder_path = target_dir
         return JSONResponse(content={"status": "success", "base_folder": str(base_folder_path)})
     except HTTPException:
@@ -58,17 +58,17 @@ def _render_markdown_to_html(markdown_content: str) -> str:
     """Convert markdown content to HTML with optional emoji support"""
     extensions = ['extra', 'codehilite']
     extension_configs = {}
-    
+
     try:
         import pymdownx.emoji
-        
+
         def to_alt_with_span(*args, **kwargs):
             alt = args[4] if len(args) > 4 else kwargs.get('alt', '')
             span = Element('span')
             span.set('class', 'emoji')
             span.text = alt
             return span
-        
+
         extensions.extend(['pymdownx.emoji', 'pymdownx.superfences'])
         extension_configs['pymdownx.emoji'] = {
             'emoji_index': pymdownx.emoji.gemoji,
@@ -76,7 +76,7 @@ def _render_markdown_to_html(markdown_content: str) -> str:
         }
     except ImportError:
         pass
-    
+
     md = markdown.Markdown(
         extensions=extensions,
         extension_configs=extension_configs
@@ -179,38 +179,63 @@ def serve_asset(file_path: str, base_folder: Optional[str] = None):
         raise HTTPException(status_code=500, detail=f"Error serving asset: {str(e)}")
 
 
-@app.get("/{file_path:path}")
-def get_file_content(file_path: str):
-    """Serve markdown files using relative paths from the base folder"""
+def _get_markdown_html(file_path: str) -> str:
+    """Read and render a markdown file to HTML. Performs security checks."""
     global base_folder_path
-    
-    # Only handle .md files with this route
+
+    # Only handle .md files
     if not file_path.endswith('.md'):
         raise HTTPException(status_code=404, detail="Not found")
-    
+
+    if base_folder_path is None:
+        raise HTTPException(status_code=400, detail="Base folder not set. Please select a folder first.")
+
+    full_path = base_folder_path / file_path
+
+    # Security check: ensure the file is within the base directory
+    if not str(full_path.resolve()).startswith(str(base_folder_path.resolve())):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not full_path.exists() or not full_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if full_path.suffix.lower() != '.md':
+        raise HTTPException(status_code=400, detail="Not a markdown file")
+
+    # Read and render markdown
+    with open(full_path, 'r', encoding='utf-8') as f:
+        markdown_content = f.read()
+
+    return _render_markdown_to_html(markdown_content)
+
+
+@app.get("/raw/{file_path:path}")
+def get_file_raw_html_content(file_path: str):
+    """Serve markdown file using relative paths from the base folder"""
     try:
-        if base_folder_path is None:
-            raise HTTPException(status_code=400, detail="Base folder not set. Please select a folder first.")
-        
-        full_path = base_folder_path / file_path
-        
-        # Security check: ensure the file is within the base directory
-        if not str(full_path.resolve()).startswith(str(base_folder_path.resolve())):
-            raise HTTPException(status_code=403, detail="Access denied")
-        
-        if not full_path.exists() or not full_path.is_file():
-            raise HTTPException(status_code=404, detail="File not found")
-        
-        if full_path.suffix.lower() != '.md':
-            raise HTTPException(status_code=400, detail="Not a markdown file")
-        
-        # Read and render markdown
-        with open(full_path, 'r', encoding='utf-8') as f:
-            markdown_content = f.read()
-        
-        html_content = _render_markdown_to_html(markdown_content)
+        html_content = _get_markdown_html(file_path)
         return HTMLResponse(content=f'<div class="markdown-content">{html_content}</div>')
-    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+
+@app.get("/{file_path:path}", response_class=HTMLResponse)
+def get_file_rendered_markdown(request: Request, file_path: str):
+    """Serve markdown file with Jinja2 template using relative paths from the base folder"""
+    global base_folder_path
+
+    try:
+        html_content = _get_markdown_html(file_path)
+
+        return templates.TemplateResponse("markdown.html", {
+            "request": request,
+            "filename": Path(file_path).name,
+            "html_content": html_content,
+            "base_folder": str(base_folder_path),
+            "sidebar_title": "Markdown Files"
+        })
     except HTTPException:
         raise
     except Exception as e:

@@ -94,7 +94,7 @@ async function selectFile(filePath, element) {
             return;
         }
 
-        const url = `/${encodeURIComponent(filePath)}`;
+        const url = `/raw/${encodeURIComponent(filePath)}`;
         const response = await fetch(url);
         if (response.ok) {
             const html = await response.text();
