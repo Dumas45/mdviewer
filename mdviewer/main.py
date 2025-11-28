@@ -4,17 +4,84 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from pathlib import Path
 import markdown
 import mimetypes
 
 app = FastAPI(title="Markdown Viewer")
 
+# Store the base folder path on the server
+base_folder_path: Optional[Path] = None
+
 # Configure Jinja2 templates
 templates = Jinja2Templates(directory="templates")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+class SetBaseFolderRequest(BaseModel):
+    folder_path: str
+
+
+@app.post("/api/set-base-folder")
+def set_base_folder(request: SetBaseFolderRequest):
+    """Set the base folder path on the server"""
+    global base_folder_path
+    try:
+        target_dir = Path(request.folder_path).resolve()
+        
+        if not target_dir.exists():
+            raise HTTPException(status_code=404, detail="Directory not found")
+        
+        if not target_dir.is_dir():
+            raise HTTPException(status_code=400, detail="Path is not a directory")
+        
+        base_folder_path = target_dir
+        return JSONResponse(content={"status": "success", "base_folder": str(base_folder_path)})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error setting base folder: {str(e)}")
+
+
+@app.get("/api/get-base-folder")
+def get_base_folder():
+    """Get the current base folder path from the server"""
+    if base_folder_path is None:
+        return JSONResponse(content={"base_folder": None})
+    return JSONResponse(content={"base_folder": str(base_folder_path)})
+
+
+def _render_markdown_to_html(markdown_content: str) -> str:
+    """Convert markdown content to HTML with optional emoji support"""
+    extensions = ['extra', 'codehilite']
+    extension_configs = {}
+    
+    try:
+        import pymdownx.emoji
+        
+        def to_alt_with_span(*args, **kwargs):
+            alt = args[4] if len(args) > 4 else kwargs.get('alt', '')
+            span = Element('span')
+            span.set('class', 'emoji')
+            span.text = alt
+            return span
+        
+        extensions.extend(['pymdownx.emoji', 'pymdownx.superfences'])
+        extension_configs['pymdownx.emoji'] = {
+            'emoji_index': pymdownx.emoji.gemoji,
+            'emoji_generator': to_alt_with_span
+        }
+    except ImportError:
+        pass
+    
+    md = markdown.Markdown(
+        extensions=extensions,
+        extension_configs=extension_configs
+    )
+    return md.convert(markdown_content)
 
 
 def get_file_tree(directory: Path, relative_to: Optional[Path] = None) -> list:
@@ -106,38 +173,7 @@ def get_file_content(file_path: str, base_folder: Optional[str] = None):
         with open(full_path, 'r', encoding='utf-8') as f:
             markdown_content = f.read()
 
-        # Convert markdown to HTML
-        # Try to use emoji extension if available, fallback to basic extensions
-        extensions = ['extra', 'codehilite']
-        extension_configs = {}
-
-        try:
-            import pymdownx.emoji
-
-            # Custom emoji generator that wraps Unicode emoji in span with class
-            def to_alt_with_span(*args, **kwargs):
-                # The alt text (Unicode emoji) is typically the 5th argument (index 4)
-                alt = args[4] if len(args) > 4 else kwargs.get('alt', '')
-                span = Element('span')
-                span.set('class', 'emoji')
-                span.text = alt
-                return span
-
-            extensions.extend(['pymdownx.emoji', 'pymdownx.superfences'])
-            extension_configs['pymdownx.emoji'] = {
-                'emoji_index': pymdownx.emoji.gemoji,
-                'emoji_generator': to_alt_with_span
-            }
-        except ImportError:
-            # pymdown-extensions not available, skip emoji support
-            pass
-
-        md = markdown.Markdown(
-            extensions=extensions,
-            extension_configs=extension_configs
-        )
-        html_content = md.convert(markdown_content)
-
+        html_content = _render_markdown_to_html(markdown_content)
         return HTMLResponse(content=f'<div class="markdown-content">{html_content}</div>')
 
     except HTTPException:
@@ -174,6 +210,44 @@ def serve_asset(file_path: str, base_folder: Optional[str] = None):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error serving asset: {str(e)}")
+
+
+@app.get("/{file_path:path}")
+def serve_markdown_by_relative_path(file_path: str):
+    """Serve markdown files using relative paths from the base folder"""
+    global base_folder_path
+    
+    # Only handle .md files with this route
+    if not file_path.endswith('.md'):
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    try:
+        if base_folder_path is None:
+            raise HTTPException(status_code=400, detail="Base folder not set. Please select a folder first.")
+        
+        full_path = base_folder_path / file_path
+        
+        # Security check: ensure the file is within the base directory
+        if not str(full_path.resolve()).startswith(str(base_folder_path.resolve())):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        if not full_path.exists() or not full_path.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        if full_path.suffix.lower() != '.md':
+            raise HTTPException(status_code=400, detail="Not a markdown file")
+        
+        # Read and render markdown
+        with open(full_path, 'r', encoding='utf-8') as f:
+            markdown_content = f.read()
+        
+        html_content = _render_markdown_to_html(markdown_content)
+        return HTMLResponse(content=f'<div class="markdown-content">{html_content}</div>')
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
 if __name__ == "__main__":

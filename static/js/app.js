@@ -206,7 +206,7 @@ function fixAssetPaths(markdownFilePath) {
     });
 }
 
-function handleFolderLoad() {
+async function handleFolderLoad() {
     const folderInput = document.getElementById('folder-input');
     const folderPath = folderInput.value.trim();
 
@@ -220,6 +220,28 @@ function handleFolderLoad() {
     selectedFile = null;
     document.getElementById('markdown-content').innerHTML =
         '<p style="color: #6c757d;">Loading folder...</p>';
+
+    // Set the base folder on the server
+    try {
+        const response = await fetch('/api/set-base-folder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ folder_path: folderPath })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            document.getElementById('tree-container').innerHTML =
+                `<div class="error">Error setting base folder: ${error.detail}</div>`;
+            return;
+        }
+    } catch (error) {
+        document.getElementById('tree-container').innerHTML =
+            `<div class="error">Error setting base folder: ${error.message}</div>`;
+        return;
+    }
 
     loadFileTree(folderPath);
 }
