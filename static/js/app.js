@@ -94,7 +94,7 @@ async function selectFile(filePath, element) {
             return;
         }
 
-        const url = `/api/file/${encodeURIComponent(filePath)}?base_folder=${encodeURIComponent(currentFolder)}`;
+        const url = `/${encodeURIComponent(filePath)}`;
         const response = await fetch(url);
         if (response.ok) {
             const html = await response.text();

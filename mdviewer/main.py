@@ -149,39 +149,6 @@ def get_files(folder_path: Optional[str] = None):
         raise HTTPException(status_code=500, detail=f"Error reading directory: {str(e)}")
 
 
-@app.get("/api/file/{file_path:path}")
-def get_file_content(file_path: str, base_folder: Optional[str] = None):
-    """API endpoint to get rendered markdown content"""
-    try:
-        if base_folder is None:
-            raise HTTPException(status_code=400, detail="Base folder parameter is required")
-
-        base_dir = Path(base_folder).resolve()
-        full_path = base_dir / file_path
-
-        # Security check: ensure the file is within the base directory
-        if not str(full_path.resolve()).startswith(str(base_dir.resolve())):
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        if not full_path.exists() or not full_path.is_file():
-            raise HTTPException(status_code=404, detail="File not found")
-
-        if full_path.suffix.lower() != '.md':
-            raise HTTPException(status_code=400, detail="Not a markdown file")
-
-        # Read and render markdown
-        with open(full_path, 'r', encoding='utf-8') as f:
-            markdown_content = f.read()
-
-        html_content = _render_markdown_to_html(markdown_content)
-        return HTMLResponse(content=f'<div class="markdown-content">{html_content}</div>')
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
-
-
 @app.get("/assets/{file_path:path}")
 def serve_asset(file_path: str, base_folder: Optional[str] = None):
     """Serve static assets (images, etc.) from the selected markdown folder"""
@@ -213,7 +180,7 @@ def serve_asset(file_path: str, base_folder: Optional[str] = None):
 
 
 @app.get("/{file_path:path}")
-def serve_markdown_by_relative_path(file_path: str):
+def get_file_content(file_path: str):
     """Serve markdown files using relative paths from the base folder"""
     global base_folder_path
     
