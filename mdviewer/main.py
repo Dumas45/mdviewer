@@ -1,13 +1,24 @@
+import os
+import logging
+import mimetypes
+from pathlib import Path
 from typing import Optional
 from xml.etree.ElementTree import Element
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from pathlib import Path
+
 import markdown
-import mimetypes
+from markdown.extensions import Extension
+from markdown.treeprocessors import Treeprocessor
+
+from urllib.parse import urlparse
+
+log = logging.getLogger(__name__)
+
 
 app = FastAPI(title="Markdown Viewer")
 
@@ -54,9 +65,64 @@ def get_base_folder():
     return JSONResponse(content={"base_folder": str(base_folder_path)})
 
 
-def _render_markdown_to_html(markdown_content: str) -> str:
+def is_relative_path(path: str) -> bool:
+    return not os.path.isabs(path) and not urlparse(path).scheme
+
+
+def _tweak_urls(element: Element, path_prefix: Path) -> None:
+    """Update urls in `img[src]` and `a[href]` by adding a prefix to them."""
+    cwd = Path.cwd()
+    assets_path = Path('/assets')
+    if element.tag == 'img' and 'src' in element.attrib:
+        src = element.attrib['src']
+        if src and is_relative_path(src):
+            new_src = (path_prefix / src).resolve().absolute().relative_to(cwd)
+            new_src = assets_path / new_src
+            element.set('src', str(new_src))
+            log.info("Image file link changed from %s to %s", src, new_src)
+    elif element.tag == 'a' and 'href' in element.attrib:
+        href = element.attrib['href']
+        if href and is_relative_path(href):
+            new_href = (path_prefix / href).resolve().absolute().relative_to(cwd)
+            element.set('href', str(new_href))
+            log.info("URL changed from %s to %s", href, new_href)
+
+
+class HtmlTweakProcessor(Treeprocessor):
+    def __init__(self, md: markdown.Markdown, path_prefix: Path):
+        super().__init__(md)
+        self.path_prefix = path_prefix
+
+    def run(self, root: Element) -> Element:
+        for element in root.iter():
+            _tweak_urls(element, self.path_prefix)
+
+        return root
+
+
+class HtmlTweakExtension(Extension):
+    def __init__(self, path_prefix: Path, **kwargs):
+        self.config = {
+            'path_prefix': [path_prefix, 'Prefix to add to URLs'],
+        }
+        super().__init__(**kwargs)
+
+    def extendMarkdown(self, md: markdown.Markdown):
+        path_prefix = self.getConfig('path_prefix')
+        md.treeprocessors.register(
+            HtmlTweakProcessor(md, path_prefix),
+            name='html_tweak_processor',
+            priority=15
+        )
+
+
+def _render_markdown_to_html(markdown_content: str, path_prefix: Path) -> str:
     """Convert markdown content to HTML with optional emoji support"""
-    extensions = ['extra', 'codehilite']
+    extensions = [
+        'extra',
+        'codehilite',
+        HtmlTweakExtension(path_prefix=path_prefix)
+    ]
     extension_configs = {}
 
     try:
@@ -150,13 +216,13 @@ def get_files(folder_path: Optional[str] = None):
 
 
 @app.get("/assets/{file_path:path}")
-def serve_asset(file_path: str, base_folder: Optional[str] = None):
+def serve_asset(file_path: str):
     """Serve static assets (images, etc.) from the selected markdown folder"""
     try:
-        if base_folder is None:
-            raise HTTPException(status_code=400, detail="Base folder parameter is required")
+        if base_folder_path is None:
+            raise HTTPException(status_code=400, detail="Base folder not set. Please select a folder first.")
 
-        base_dir = Path(base_folder).resolve()
+        base_dir = base_folder_path.resolve().absolute()
         full_path = base_dir / file_path
 
         # Security check: ensure the file is within the base directory
@@ -181,8 +247,6 @@ def serve_asset(file_path: str, base_folder: Optional[str] = None):
 
 def _get_markdown_html(file_path: str) -> str:
     """Read and render a markdown file to HTML. Performs security checks."""
-    global base_folder_path
-
     # Only handle .md files
     if not file_path.endswith('.md'):
         raise HTTPException(status_code=404, detail="Not found")
@@ -206,7 +270,7 @@ def _get_markdown_html(file_path: str) -> str:
     with open(full_path, 'r', encoding='utf-8') as f:
         markdown_content = f.read()
 
-    return _render_markdown_to_html(markdown_content)
+    return _render_markdown_to_html(markdown_content, path_prefix=Path(file_path).parent)
 
 
 @app.get("/raw/{file_path:path}")
@@ -224,8 +288,6 @@ def get_file_raw_html_content(file_path: str):
 @app.get("/{file_path:path}", response_class=HTMLResponse)
 def get_file_rendered_markdown(request: Request, file_path: str):
     """Serve markdown file with Jinja2 template using relative paths from the base folder"""
-    global base_folder_path
-
     try:
         html_content = _get_markdown_html(file_path)
 
