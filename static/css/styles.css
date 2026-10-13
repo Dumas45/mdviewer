@@ -197,6 +197,13 @@ body {
     margin-top: 0.6em;
 }
 
+/* LaTeX math: let wide block formulas scroll instead of breaking the layout */
+.markdown-content div.arithmatex {
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin: 1em 0;
+}
+
 /* Table styling */
 .markdown-content table {
     width: 100%;

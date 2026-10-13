@@ -1,6 +1,20 @@
 let selectedFile = null;
 let currentFolder = null;
 
+function renderMath(element) {
+    // KaTeX may be unavailable (e.g. CDN unreachable); leave the raw text in that case
+    if (!element || typeof renderMathInElement !== 'function') {
+        return;
+    }
+    renderMathInElement(element, {
+        delimiters: [
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false }
+        ],
+        throwOnError: false
+    });
+}
+
 async function loadFileTree(folderPath = null) {
     try {
         const url = folderPath ? `/api/files?folder_path=${encodeURIComponent(folderPath)}` : '/api/files';
@@ -98,7 +112,9 @@ async function selectFile(filePath, element) {
         const response = await fetch(url);
         if (response.ok) {
             const html = await response.text();
-            document.getElementById('markdown-content').innerHTML = html;
+            const contentElement = document.getElementById('markdown-content');
+            contentElement.innerHTML = html;
+            renderMath(contentElement);
         } else {
             const errorText = await response.text();
             document.getElementById('markdown-content').innerHTML =
@@ -153,6 +169,7 @@ async function handleFolderLoad() {
 // Load file tree on page load (will be empty by default)
 document.addEventListener('DOMContentLoaded', function() {
     loadFileTree(); // Load empty tree initially
+    renderMath(document.getElementById('markdown-content')); // Directly served markdown pages
 
     // Set up event handlers
     document.getElementById('load-folder-btn').addEventListener('click', handleFolderLoad);
