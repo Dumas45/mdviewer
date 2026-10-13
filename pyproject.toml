@@ -1,0 +1,19 @@
+[project]
+name = "mdviewer"
+version = "0.1.0"
+description = "Markdown Viewer"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "markdown",
+    "pymdown-extensions",
+    "pygments",
+]
+
+[dependency-groups]
+dev = [
+    "pylint",
+]
