@@ -117,7 +117,7 @@ class HtmlTweakExtension(Extension):
 
 
 def _render_markdown_to_html(markdown_content: str, path_prefix: Path) -> str:
-    """Convert markdown content to HTML with optional emoji support"""
+    """Convert markdown content to HTML with optional emoji and LaTeX math support"""
     extensions = [
         'extra',
         'codehilite',
@@ -135,11 +135,13 @@ def _render_markdown_to_html(markdown_content: str, path_prefix: Path) -> str:
             span.text = alt
             return span
 
-        extensions.extend(['pymdownx.emoji', 'pymdownx.superfences'])
+        extensions.extend(['pymdownx.emoji', 'pymdownx.superfences', 'pymdownx.arithmatex'])
         extension_configs['pymdownx.emoji'] = {
             'emoji_index': pymdownx.emoji.gemoji,
             'emoji_generator': to_alt_with_span
         }
+        # Generic mode emits \(...\) / \[...\] which KaTeX auto-render picks up in the browser
+        extension_configs['pymdownx.arithmatex'] = {'generic': True}
     except ImportError:
         pass
 
