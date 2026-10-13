@@ -1,2 +1,2 @@
 #!/bin/bash
-source ../Envs/mdviewer/bin/activate
+source .venv/bin/activate

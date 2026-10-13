@@ -183,7 +183,7 @@ def get_file_tree(directory: Path, relative_to: Optional[Path] = None) -> list:
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
     """Serve the main HTML page using Jinja2 template"""
-    return templates.TemplateResponse("index.html", {
+    return templates.TemplateResponse(request=request, name="index.html", context={
         "request": request,
         "title": "Markdown Viewer",
         "sidebar_title": "Markdown Files",
@@ -291,7 +291,7 @@ def get_file_rendered_markdown(request: Request, file_path: str):
     try:
         html_content = _get_markdown_html(file_path)
 
-        return templates.TemplateResponse("markdown.html", {
+        return templates.TemplateResponse(request=request, name="markdown.html", context={
             "request": request,
             "filename": Path(file_path).name,
             "html_content": html_content,
